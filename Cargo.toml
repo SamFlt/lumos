@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 ndarray = "*"
 ndarray-linalg = "*"
-iced = "*"
+iced = {version = "*", features = ['image']}
+bytes = "1.11.1"
