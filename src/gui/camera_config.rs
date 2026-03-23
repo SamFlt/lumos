@@ -1,4 +1,4 @@
-use crate::{camera::Camera, transform::Transform};
+use crate::{core::camera::Camera, core::transform::Transform};
 
 use iced::{
     Element,
@@ -75,7 +75,6 @@ impl CameraConfigWidget {
     pub fn update(self: &mut Self, message: CameraConfigMessage) {
         match message {
             CameraConfigMessage::FocalLengthChanged(focal) => {
-                println!("Focal = {focal}");
 
                 self.cam.focal_length = focal
             }
@@ -83,7 +82,6 @@ impl CameraConfigWidget {
             CameraConfigMessage::SensorHeightChanged(height) => self.cam.sensor_height = height,
             CameraConfigMessage::ResolutionWidthChanged(width) => self.cam.width_resolution = width,
             CameraConfigMessage::ResolutionHeightChanged(height) => {
-                println!("Heihgt {height}");
                 self.cam.height_resolution = height
             }
         }

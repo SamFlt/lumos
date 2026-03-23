@@ -1,7 +1,8 @@
-use ndarray::{Array2, Array3};
-use ndarray_linalg::NormalizeAxis;
+use ndarray::{Array1, Array2, Array3, Axis};
+use ndarray_linalg::{Norm, NormalizeAxis};
 
-use crate::transform::{Transform, Vec3};
+use crate::core::transform::{Transform, Vec3};
+#[derive(Clone)]
 pub struct Camera {
     pub pose: Transform,
     pub focal_length: f64,
@@ -34,15 +35,15 @@ impl Camera {
             let y = pixel_height / 2.0 + pixel_height * v as f64;
             for u in 0..self.width_resolution as usize {
                 let x = pixel_width / 2.0 + pixel_width * u as f64;
-                array[[v, u, 0]] = x;
-                array[[v, u, 1]] = y;
+                array[[v, u, 0]] = image_plane_corner.x + x;
+                array[[v, u, 1]] = image_plane_corner.y + y;
                 array[[v, u, 2]] = image_plane_corner.z;
             }
         }
         array
     }
 
-    pub fn get_rays(self) -> Rays {
+    pub fn get_rays(self: &Camera) -> Rays {
         let image_grid_points = self.sample_image_grid();
         let num_points = image_grid_points.shape()[0] * image_grid_points.shape()[1];
         let mut pixel_positions = Array3::<usize>::zeros((
@@ -67,16 +68,35 @@ impl Camera {
         let image_grid_points = image_grid_points
             .into_shape_with_order((num_points, 3))
             .expect("Could not cast into flattened ray array");
+        let (directions, _) = ndarray_linalg::normalize(image_grid_points, NormalizeAxis::Row);
+        // let norms: Vec<f64> = directions.axis_iter(Axis(0)).map(|s| s.norm_l2()).collect();
+        // println!("{norms:?}");
+        // panic!();
         Rays {
-            positions: positions,
-            directions: ndarray_linalg::normalize(image_grid_points, NormalizeAxis::Column).0,
+            origins: positions,
+            directions: directions,
             pixel_positions: pixel_positions,
         }
     }
 }
 
+#[derive(Debug)]
 pub struct Rays {
-    pub positions: Array2<f64>,
+    pub origins: Array2<f64>,
     pub directions: Array2<f64>,
     pub pixel_positions: Array2<usize>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RayResult {
+    pub id: usize,
+    pub hit_point: Array1<f64>,
+    pub dist: f64,
+    pub normal: Array1<f64>
+}
+pub struct RayResults {
+    pub ids: Array1::<usize>,
+    pub hit_points: Array2<f64>,
+    pub dist: f32,
+    pub normals: Array2<f64>
 }

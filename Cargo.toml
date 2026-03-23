@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 ndarray = "*"
-ndarray-linalg = "*"
+ndarray-linalg = { version = "*", features = ["intel-mkl-static"] }
 iced = {version = "*", features = ['image']}
 bytes = "1.11.1"
