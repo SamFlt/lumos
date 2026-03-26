@@ -1,6 +1,6 @@
 use std::ops::{Add, Mul};
 
-use ndarray::{Array1, Array2, s};
+use ndarray::{Array1, Array2, ArrayView2, Axis, s};
 
 pub struct Vec3 {
     pub x: f64,
@@ -34,7 +34,7 @@ impl Add<Vec3> for Vec3 {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Transform {
     pose: ndarray::Array2<f64>,
 }
@@ -44,7 +44,7 @@ impl Mul<&Transform> for &Transform {
 
     fn mul(self, rhs: &Transform) -> Self::Output {
         Transform {
-            pose: self.pose.dot(&rhs.pose)
+            pose: self.pose.dot(&rhs.pose),
         }
     }
 }
@@ -56,21 +56,21 @@ impl Transform {
         }
     }
 
+    pub fn at_position(position: Vec3) -> Self {
+        Self::new().with_new_position(position)
+    }
 
     pub fn rotate_y(rads: f64) -> Transform {
         let mut arr = Array2::<f64>::eye(4);
         let c = rads.cos();
         let s = rads.sin();
-        let data = Array2::<f64>::from_shape_vec((3, 3), [
-            c, 0.0, s,
-            0.0, 1.0, 0.0,
-            -s, 0.0, c
-        ].to_vec()).unwrap();
+        let data =
+            Array2::<f64>::from_shape_vec((3, 3), [c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c].to_vec())
+                .unwrap();
 
         arr.slice_mut(s![0..3, 0..3]).assign(&data);
         Transform { pose: arr }
     }
-
 
     pub fn position(self: &Self) -> Vec3 {
         Vec3 {
@@ -79,7 +79,6 @@ impl Transform {
             z: self.pose[[2, 3]],
         }
     }
-
 
     pub fn with_new_position(self: Self, v: Vec3) -> Self {
         let mut a = self.pose.clone();
@@ -99,24 +98,49 @@ impl Transform {
         }
     }
 
-
     pub fn inverse(self: &Self) -> Transform {
         let r = self.pose.slice(s![0..3, 0..3]);
         let rt = r.t();
-        let t : Array1<f64> = self.pose.slice(s![0..3, 3]).to_owned();
+        let t: Array1<f64> = self.pose.slice(s![0..3, 3]).to_owned();
         let tinv: Array1<f64> = -(rt.dot(&t));
 
-
-        let mut np = Array2::<f64>::zeros((4,4));
+        let mut np = Array2::<f64>::zeros((4, 4));
 
         np.slice_mut(s![0..3, 0..3]).assign(&r);
         np.slice_mut(s![0..3, 3]).assign(&tinv);
         np[[3, 3]] = 1.0;
 
-        Transform {
-            pose: np
-        }
-
+        Transform { pose: np }
     }
 
+    pub fn rotation_matrix(self: &Self) -> ArrayView2<'_, f64> {
+        self.pose.slice(s![0..3, 0..3])
+    }
+
+    pub fn transform(self: &Self, points: &Array2<f64>) -> Array2<f64> {
+        let rot_mat = self.rotation_matrix();
+        let t = self.pose.slice(s![0..3, 3]);
+        let n = points.shape()[0];
+        let mut res: Array2<f64> = Array2::default((n, 3));
+        points
+            .axis_iter(Axis(0))
+            .enumerate()
+            .for_each(|(idx, point)| {
+                let p = rot_mat.dot(&point) + &t;
+                res.row_mut(idx).assign(&p);
+            });
+        res
+    }
+
+    pub fn rotate(self: &Self, vecs: &Array2<f64>) -> Array2<f64> {
+        let rot_mat = self.rotation_matrix();
+        let n = vecs.shape()[0];
+        let mut res: Array2<f64> = Array2::default((n, 3));
+        vecs.axis_iter(Axis(0))
+            .enumerate()
+            .for_each(|(idx, point)| {
+                res.row_mut(idx).assign(&rot_mat.dot(&point));
+            });
+        res
+    }
 }

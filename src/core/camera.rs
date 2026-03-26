@@ -1,5 +1,6 @@
-use ndarray::{Array1, Array2, Array3, Axis};
-use ndarray_linalg::{Norm, NormalizeAxis};
+
+use ndarray::{Array1, Array2, Array3, Axis, Dim};
+use ndarray_linalg::{NormalizeAxis};
 
 use crate::core::transform::{Transform, Vec3};
 #[derive(Clone)]
@@ -76,15 +77,40 @@ impl Camera {
             origins: positions,
             directions: directions,
             pixel_positions: pixel_positions,
+            world_t_ray: self.pose.clone(),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Rays {
     pub origins: Array2<f64>,
     pub directions: Array2<f64>,
     pub pixel_positions: Array2<usize>,
+    pub world_t_ray: Transform,
+}
+
+impl Rays {
+    pub fn iter(
+        self: &Self,
+    ) -> std::iter::Zip<
+        ndarray::iter::AxisIter<'_, f64, Dim<[usize; 1]>>,
+        ndarray::iter::AxisIter<'_, f64, Dim<[usize; 1]>>,
+    > {
+        let orig_iter = self.origins.axis_iter(Axis(0));
+        let dir_iter = self.directions.axis_iter(Axis(0));
+        orig_iter.zip(dir_iter)
+    }
+
+    pub fn into_other_frame(self: &Self, world_t_other: &Transform) -> Self {
+        let projection: Transform = &world_t_other.inverse() * &self.world_t_ray;
+        Rays {
+            origins: projection.transform(&self.origins),
+            directions: projection.rotate(&self.directions),
+            pixel_positions: self.pixel_positions.clone(),
+            world_t_ray: world_t_other.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -92,11 +118,5 @@ pub struct RayResult {
     pub id: usize,
     pub hit_point: Array1<f64>,
     pub dist: f64,
-    pub normal: Array1<f64>
-}
-pub struct RayResults {
-    pub ids: Array1::<usize>,
-    pub hit_points: Array2<f64>,
-    pub dist: f32,
-    pub normals: Array2<f64>
+    pub normal: Array1<f64>,
 }

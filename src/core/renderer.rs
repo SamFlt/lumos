@@ -1,41 +1,49 @@
-use std::thread::current;
 
-use ndarray::{Array2, Array3, s};
+use ndarray::{Array3, s};
+use ndarray_linalg::Norm;
 
 use crate::core::camera::{Camera, RayResult};
-use crate::core::scene::{Object, Scene};
+use crate::core::color::Color;
+use crate::core::light::Light;
+use crate::core::scene::Scene;
+use crate::core::object::Object;
 use crate::core::transform::Transform;
 
 pub struct LumosRenderer {
     pub camera: Camera,
-    pub scene: Scene
+    pub scene: Scene,
 }
 
 impl Default for LumosRenderer {
     fn default() -> Self {
-        Self { camera: Camera {
+        Self {
+            camera: Camera {
                 pose: Transform::new(),
                 focal_length: 0.05,
                 sensor_width: 0.05,
                 sensor_height: 0.05,
-                width_resolution: 1200,
+                width_resolution: 800,
                 height_resolution: 800,
-            }, scene: Scene::base_scene() }
+            },
+            scene: Scene::base_scene(),
+        }
     }
 }
 
 impl LumosRenderer {
-
     pub fn render(self: &Self) -> Array3<u8> {
-        let (h, w) = (self.camera.height_resolution as usize, self.camera.width_resolution as usize);
+        let (h, w) = (
+            self.camera.height_resolution as usize,
+            self.camera.width_resolution as usize,
+        );
         let mut image = Array3::<u8>::default((h, w, 4));
         image.slice_mut(s![.., .., 3]).fill(255); // Alpha channel
-        let scene = self.scene.in_other_frame(&self.camera.pose);
+        // let scene = self.scene.in_other_frame(&self.camera.pose);
 
         let rays = self.camera.get_rays();
         let mut closest_rays: Vec<Option<(usize, RayResult)>> = Vec::new();
-        closest_rays.resize_with(h * w, || {None});
-        scene.objects.iter().enumerate().for_each(|(obj_id, obj)| {
+        closest_rays.resize_with(h * w, || None);
+        self.scene.objects.iter().enumerate().for_each(|(obj_id, obj)| {
             let ray_hits = obj.intersect(&rays);
             for ray in ray_hits {
                 let pixel_position = rays.pixel_positions.row(ray.id);
@@ -54,29 +62,53 @@ impl LumosRenderer {
             }
         });
 
+        closest_rays
+            .iter()
+            .enumerate()
+            .for_each(|(pixel_index, pixel_result)| {
+                let v = pixel_index / w;
+                let u = pixel_index % w;
+                match pixel_result {
+                    None => {
+                        image[[v, u, 0]] = 0;
+                        image[[v, u, 1]] = 0;
+                        image[[v, u, 2]] = 0;
+                    }
+                    Some((obj_id, ray_result)) => {
+                        let obj: &Object = &(self.scene.objects[*obj_id]);
 
-        closest_rays.iter().enumerate().for_each(|(pixel_index, pixel_result)| {
-            let v = pixel_index / w;
-            let u = pixel_index % w;
-            match pixel_result {
-                None => {
-                    image[[v, u, 0]] = 0;
-                    image[[v, u, 1]] = 0;
-                    image[[v, u, 2]] = 0;
-                },
-                Some((obj_id, ray_result)) => {
-                    let obj: &Object = &(scene.objects[*obj_id]);
-                    let c = obj.color();
-                    image[[v, u, 0]] = (c.r * 255.0).round() as u8;
-                    image[[v, u, 1]] = (c.g * 255.0).round() as u8;
-                    image[[v, u, 2]] = (c.b * 255.0).round() as u8;
-                    
+                        let mut c = Color {
+                            r: 0.0,
+                            g: 0.0,
+                            b: 0.0
+                        };
+
+                        for light in &self.scene.lights {
+                            match light {
+                                Light::Point(pos) => {
+                                    let d = pos.to_ndarray() - &ray_result.hit_point;
+                                    let dnorm = d.norm_l2();
+                                    let d = d / dnorm;
+                                    let coeff = (d * &ray_result.normal).sum();
+                                    c += obj.color() * coeff as f32;
+                                },
+                                Light::Directional(dir) => todo!(),
+                            }
+                        }
+                        
+                        image[[v, u, 0]] = (c.r * 255.0).round() as u8;
+                        image[[v, u, 1]] = (c.g * 255.0).round() as u8;
+                        image[[v, u, 2]] = (c.b * 255.0).round() as u8;
+                    }
                 }
-            }
-        });
+            });
+            
+            image
+        }
+    }
+    
 
         // println!("{closest_rays:?}");
-
 
         // let r = rays.pixel_positions.map_axis(ndarray::Axis(1), |px| px[0] as f32 / h as f32);
         // let g = rays.pixel_positions.map_axis(ndarray::Axis(1), |px| px[1] as f32 / w as f32);
@@ -86,10 +118,3 @@ impl LumosRenderer {
         // for (i, channel) in [r,g].iter().enumerate() {
         //     image.slice_mut(s![.., .., i]).assign(&channel);
         // }
-        
-
-        image
-    }
-
-    
-}

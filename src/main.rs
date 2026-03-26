@@ -15,11 +15,10 @@ use iced::{
     widget::{column, image},
 };
 
-
 struct LumosGui {
     cam_widget: CameraConfigWidget,
     renderer: LumosRenderer,
-    image: Array3<u8>
+    image: Array3<u8>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -33,7 +32,7 @@ impl Default for LumosGui {
         LumosGui {
             cam_widget: CameraConfigWidget::default(),
             renderer: LumosRenderer::default(),
-            image: Array3::<u8>::default((800,400, 4))
+            image: Array3::<u8>::default((800, 400, 4)),
         }
     }
 }
@@ -45,7 +44,6 @@ impl LumosGui {
                 println!("Rendering was called");
                 self.renderer.camera = self.cam_widget.cam.clone();
                 self.image = self.renderer.render();
-
             }
             Message::CameraWidget(camera_config_message) => {
                 self.cam_widget.update(camera_config_message)

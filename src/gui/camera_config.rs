@@ -2,7 +2,7 @@ use crate::{core::camera::Camera, core::transform::Transform};
 
 use iced::{
     Element,
-    widget::{button, column, row, slider, text},
+    widget::{column, row, slider, text},
 };
 
 #[derive(Debug, Copy, Clone)]
@@ -23,7 +23,7 @@ impl CameraConfigWidget {
         column![
             row![
                 "Focal length",
-                text(self.cam.focal_length.to_string()),
+                text(format!("{0:.3}", self.cam.focal_length)),
                 slider(
                     0.0..=0.05,
                     self.cam.focal_length,
@@ -74,10 +74,7 @@ impl CameraConfigWidget {
 
     pub fn update(self: &mut Self, message: CameraConfigMessage) {
         match message {
-            CameraConfigMessage::FocalLengthChanged(focal) => {
-
-                self.cam.focal_length = focal
-            }
+            CameraConfigMessage::FocalLengthChanged(focal) => self.cam.focal_length = focal,
             CameraConfigMessage::SensorWidthChanged(width) => self.cam.sensor_width = width,
             CameraConfigMessage::SensorHeightChanged(height) => self.cam.sensor_height = height,
             CameraConfigMessage::ResolutionWidthChanged(width) => self.cam.width_resolution = width,
@@ -96,7 +93,7 @@ impl Default for CameraConfigWidget {
                 focal_length: 0.032,
                 sensor_width: 0.05,
                 sensor_height: 0.05,
-                width_resolution: 1200,
+                width_resolution: 800,
                 height_resolution: 800,
             },
         }

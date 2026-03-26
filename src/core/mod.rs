@@ -1,6 +1,9 @@
 pub mod camera;
 pub mod color;
+pub mod math;
+pub mod renderer;
 pub mod scene;
 pub mod transform;
-pub mod renderer;
-pub mod math;
+pub mod light;
+pub mod object;
+pub mod rigid_body;
