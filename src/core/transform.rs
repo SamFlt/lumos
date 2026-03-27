@@ -56,6 +56,12 @@ impl Transform {
         }
     }
 
+    pub fn identity() -> Self {
+        Transform {
+            pose: ndarray::Array2::<f64>::eye(4),
+        }
+    }
+
     pub fn at_position(position: Vec3) -> Self {
         Self::new().with_new_position(position)
     }
@@ -131,7 +137,11 @@ impl Transform {
             });
         res
     }
-
+    pub fn rotate_vec(self: &Self, vec: &Array1<f64>) -> Array1<f64> {
+        return self.rotation_matrix()
+        .dot(&vec.to_shape((3, 1)).expect("Could not reshape input vec"))
+        .to_shape(3).unwrap().to_owned();
+    }
     pub fn rotate(self: &Self, vecs: &Array2<f64>) -> Array2<f64> {
         let rot_mat = self.rotation_matrix();
         let n = vecs.shape()[0];

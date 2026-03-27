@@ -1,5 +1,5 @@
 
-use ndarray::{Array1, Array2, Array3, Axis, Dim};
+use ndarray::{Array1, Array2, Array3, ArrayView1, Axis, Dim, s};
 use ndarray_linalg::{NormalizeAxis};
 
 use crate::core::transform::{Transform, Vec3};
@@ -110,6 +110,20 @@ impl Rays {
             pixel_positions: self.pixel_positions.clone(),
             world_t_ray: world_t_other.clone(),
         }
+    }
+    pub fn into_world_frame(self: &Self) -> Self {
+        let projection: &Transform = &self.world_t_ray;
+        Rays {
+            origins: projection.transform(&self.origins),
+            directions: projection.rotate(&self.directions),
+            pixel_positions: self.pixel_positions.clone(),
+            world_t_ray: Transform::identity(),
+        }
+    }
+
+    pub fn get(self: &Self, id: usize) -> (ArrayView1<'_, f64>, ArrayView1<'_, f64>) {
+        let slice = s![id, ..];
+        (self.origins.slice(slice), self.directions.slice(slice))
     }
 }
 

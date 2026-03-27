@@ -46,6 +46,7 @@ impl Object {
         )
     }
     pub fn intersect(self: &Self, rays: &Rays) -> Vec<RayResult> {
+        let rays_in_world = rays.into_world_frame();
         match self {
             Object::Sphere(object_data, radius) => {
                 let new_rays = rays.into_other_frame(&object_data.pose);
@@ -97,8 +98,8 @@ impl Object {
                             QuadraticSolutions::Two(s, _) => s,
                             _ => panic!("Cases with no solutions should have been filtered"),
                         };
-                        let hit_point = &rays.origins.slice(s![id, ..])
-                            + &rays.directions.slice(s![id, ..]) * t;
+                        let hit_point = &rays_in_world.origins.slice(s![id, ..])
+                            + &rays_in_world.directions.slice(s![id, ..]) * t;
                         let mut normal = &hit_point - &center;
                         let norm = normal.norm_l2();
                         normal /= norm;
@@ -118,16 +119,20 @@ impl Object {
                 let d = (data.pose.position().to_ndarray() * &n).sum();
                 let mut ray_results: Vec<RayResult> = Vec::new();
                 println!("Plane normal: {n:?}");
+                
+                let normal_in_world = n.clone();
                 rays.into_other_frame(&data.pose).iter().enumerate().for_each(|(index, (orig, dir))| {
                     let no = (&n * &orig).sum();
                     let nd = (&n * &dir).sum();
                     let t = (-no - d) / nd;
                     if t >= 0.0 {
+                        let (origin_world, dir_world) = rays_in_world.get(index);
+                        let hit_point_world = &origin_world + t * &dir_world; 
                         ray_results.push(RayResult {
                             id: index,
-                            hit_point: &orig + t * &dir,
+                            hit_point: hit_point_world,
                             dist: t,
-                            normal: n.clone(),
+                            normal: normal_in_world.clone(),
                         })
                     }
                 });
@@ -167,9 +172,11 @@ impl Object {
                         }
 
                         if tmax >= tmin && tmin > 0.0 {
+                            let (orig_world, dir_world) = rays_in_world.get(index);
+                            let hit_point_world = &orig_world + tmin * &dir_world;
                             ray_results.push(RayResult {
                                 id: index,
-                                hit_point: &orig + tmin * &dir,
+                                hit_point: hit_point_world,
                                 dist: tmin,
                                 normal: n,
                             });
