@@ -3,7 +3,12 @@ use core::f64;
 use ndarray::{Array1, s};
 use ndarray_linalg::Norm;
 
-use crate::core::{camera::{RayResult, Rays}, color::Color, math::QuadraticSolutions, transform::Transform};
+use crate::core::{
+    camera::{RayResult, Rays},
+    color::Color,
+    math::QuadraticSolutions,
+    transform::Transform,
+};
 
 pub struct ObjectData {
     pub pose: Transform,
@@ -24,7 +29,6 @@ pub enum Object {
     Plane(ObjectData),
     Box(ObjectData, (f64, f64, f64)),
 }
-
 
 impl Object {
     pub fn color(self: &Self) -> Color {
@@ -114,28 +118,39 @@ impl Object {
                     .collect()
             }
             Object::Plane(data) => {
-                println!("data.pose {0:?}", data.pose);
-                let n = data.pose.forward().to_ndarray();
-                let d = (data.pose.position().to_ndarray() * &n).sum();
+                let n_world = data.pose.forward().to_ndarray();
                 let mut ray_results: Vec<RayResult> = Vec::new();
-                println!("Plane normal: {n:?}");
-                
-                let normal_in_world = n.clone();
-                rays.into_other_frame(&data.pose).iter().enumerate().for_each(|(index, (orig, dir))| {
-                    let no = (&n * &orig).sum();
-                    let nd = (&n * &dir).sum();
-                    let t = (-no - d) / nd;
-                    if t >= 0.0 {
-                        let (origin_world, dir_world) = rays_in_world.get(index);
-                        let hit_point_world = &origin_world + t * &dir_world; 
-                        ray_results.push(RayResult {
-                            id: index,
-                            hit_point: hit_point_world,
-                            dist: t,
-                            normal: normal_in_world.clone(),
-                        })
-                    }
-                });
+
+                rays.into_other_frame(&data.pose)
+                    .iter()
+                    .enumerate()
+                    .for_each(|(index, (orig, dir))| {
+                        let n = Array1::from_vec(vec![0.0, 0.0, 1.0]);
+                        let mut no = n.dot(&orig);
+                        let mut nd = n.dot(&dir);
+                        if nd == 0.0 {
+                            return;
+                        }
+
+                        let mut normal_in_world = n_world.clone();
+                        // if no > 0.0 { // Seeing plane from the other side
+                        //     normal_in_world =  -normal_in_world;
+                        //     no = -no;
+                        // }
+
+                        let t = (-no) / nd;
+
+                        if t >= 0.0 {
+                            let (origin_world, dir_world) = rays_in_world.get(index);
+                            let hit_point_world = &origin_world + t * &dir_world;
+                            ray_results.push(RayResult {
+                                id: index,
+                                hit_point: hit_point_world,
+                                dist: t,
+                                normal: normal_in_world,
+                            })
+                        }
+                    });
 
                 ray_results
             }
@@ -148,7 +163,6 @@ impl Object {
                     .for_each(|(index, (orig, dir))| {
                         let mut tmin = -f64::INFINITY;
                         let mut tmax = f64::INFINITY;
-                        let mut n = Array1::<f64>::default(3);
                         for i in 0..3 {
                             let li = dim_arr[i];
                             let oi = orig[i];
@@ -161,11 +175,7 @@ impl Object {
                             let t1 = (li - oi) / di;
                             let t2 = (-li - oi) / di;
 
-                            let (t1, t2) = if t2 < t1 {
-                                (t2, t1)
-                            } else {
-                                (t1, t2)
-                            };
+                            let (t1, t2) = if t2 < t1 { (t2, t1) } else { (t1, t2) };
 
                             tmin = t1.max(tmin);
                             tmax = t2.min(tmax);
@@ -174,11 +184,39 @@ impl Object {
                         if tmax >= tmin && tmin > 0.0 {
                             let (orig_world, dir_world) = rays_in_world.get(index);
                             let hit_point_world = &orig_world + tmin * &dir_world;
+                            let hit_point = &orig + tmin * &dir;
+                            let n: [f64; 3] = {
+                                let mut minval = f64::INFINITY;
+                                let mut vi: usize = 0;
+                                let mut vd = 0.0;
+                                for i in 0..3 {
+                                    let valpos = hit_point[i] - dim_arr[i];
+                                    let valneg = hit_point[i] + dim_arr[i];
+                                    if valpos < minval {
+                                        vi = i;
+                                        vd = -1.0;
+                                        minval = valpos;
+                                    } else if valneg < minval {
+                                        vi = i;
+                                        vd = 1.0;
+                                        minval = valneg;
+                                    }
+                                }
+
+                                let mut n = [0.0, 0.0, 0.0];
+                                n[vi] = vd;
+                                n
+                            };
+
+                            let n = Array1::<f64>::from_vec(n.to_vec());
+                            let n_world = data.pose.inverse().rotate_vec(&n);
+                            println!("Cube normal {n:?}, in world {n_world:?}");
+
                             ray_results.push(RayResult {
                                 id: index,
                                 hit_point: hit_point_world,
                                 dist: tmin,
-                                normal: n,
+                                normal: n_world,
                             });
                         }
                     });

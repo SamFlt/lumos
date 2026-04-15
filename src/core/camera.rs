@@ -1,6 +1,5 @@
-
 use ndarray::{Array1, Array2, Array3, ArrayView1, Axis, Dim, s};
-use ndarray_linalg::{NormalizeAxis};
+use ndarray_linalg::NormalizeAxis;
 
 use crate::core::transform::{Transform, Vec3};
 #[derive(Clone)]

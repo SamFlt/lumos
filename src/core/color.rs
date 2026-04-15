@@ -27,7 +27,6 @@ impl Mul<f32> for Color {
             r: self.r * rhs,
             g: self.g * rhs,
             b: self.b * rhs,
-
         }
     }
 }

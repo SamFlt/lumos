@@ -22,7 +22,7 @@ impl CameraConfigWidget {
     pub fn view(self: &Self) -> Element<'_, CameraConfigMessage> {
         column![
             row![
-                "Focal length",
+                "Focal length ",
                 text(format!("{0:.3}", self.cam.focal_length)),
                 slider(
                     0.0..=0.05,
@@ -33,25 +33,30 @@ impl CameraConfigWidget {
                 "m"
             ],
             row![
-                "Sensor width",
+                "Sensor width ",
+                text(format!("{0:.3}", self.cam.sensor_width)),
                 slider(
                     0.0..=0.05,
                     self.cam.sensor_width,
                     CameraConfigMessage::SensorWidthChanged
-                ),
+                )
+                .step(0.001),
                 "m"
             ],
             row![
                 "Sensor height",
+                text(format!("{0:.3}", self.cam.sensor_height)),
                 slider(
                     0.0..=0.05,
                     self.cam.sensor_height,
                     CameraConfigMessage::SensorHeightChanged
-                ),
+                )
+                .step(0.001),
                 "m"
             ],
             row![
-                "Resolution width",
+                "Resolution width ",
+                text(self.cam.width_resolution),
                 slider(
                     128..=4096,
                     self.cam.width_resolution,
@@ -61,6 +66,7 @@ impl CameraConfigWidget {
             ],
             row![
                 "Resolution height",
+                text(self.cam.height_resolution),
                 slider(
                     128..=4096,
                     self.cam.height_resolution,

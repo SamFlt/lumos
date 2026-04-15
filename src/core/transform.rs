@@ -38,11 +38,20 @@ impl Add<Vec3> for Vec3 {
 pub struct Transform {
     pose: ndarray::Array2<f64>,
 }
-
 impl Mul<&Transform> for &Transform {
     type Output = Transform;
 
     fn mul(self, rhs: &Transform) -> Self::Output {
+        Transform {
+            pose: self.pose.dot(&rhs.pose),
+        }
+    }
+}
+
+impl Mul<Transform> for Transform {
+    type Output = Transform;
+
+    fn mul(self, rhs: Transform) -> Self::Output {
         Transform {
             pose: self.pose.dot(&rhs.pose),
         }
@@ -65,8 +74,18 @@ impl Transform {
     pub fn at_position(position: Vec3) -> Self {
         Self::new().with_new_position(position)
     }
+    pub fn rotation_around_x(rads: f64) -> Transform {
+        let mut arr = Array2::<f64>::eye(4);
+        let c = rads.cos();
+        let s = rads.sin();
+        let data =
+            Array2::<f64>::from_shape_vec((3, 3), [1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c].to_vec())
+                .unwrap();
 
-    pub fn rotate_y(rads: f64) -> Transform {
+        arr.slice_mut(s![0..3, 0..3]).assign(&data);
+        Transform { pose: arr }
+    }
+    pub fn rotation_around_y(rads: f64) -> Transform {
         let mut arr = Array2::<f64>::eye(4);
         let c = rads.cos();
         let s = rads.sin();
@@ -138,9 +157,12 @@ impl Transform {
         res
     }
     pub fn rotate_vec(self: &Self, vec: &Array1<f64>) -> Array1<f64> {
-        return self.rotation_matrix()
-        .dot(&vec.to_shape((3, 1)).expect("Could not reshape input vec"))
-        .to_shape(3).unwrap().to_owned();
+        return self
+            .rotation_matrix()
+            .dot(&vec.to_shape((3, 1)).expect("Could not reshape input vec"))
+            .to_shape(3)
+            .unwrap()
+            .to_owned();
     }
     pub fn rotate(self: &Self, vecs: &Array2<f64>) -> Array2<f64> {
         let rot_mat = self.rotation_matrix();
